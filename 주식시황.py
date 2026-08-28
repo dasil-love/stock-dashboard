@@ -33,26 +33,44 @@ show_row([
     ("나스닥 100", "^NDX", lambda v: f"{v:,.2f}"),
 ])
 
+st.divider()
 st.subheader("한국")
 show_row([
     ("코스피", "^KS11", lambda v: f"{v:,.2f}"),
     ("코스닥", "^KQ11", lambda v: f"{v:,.2f}"),
-    ("코스피 200", "^KS200", lambda v: f"{v:,.2f}"),
+    ("코스피200 (KODEX 200)", "229200.KS", lambda v: f"{v:,.2f}"),
 ])
 
+st.divider()
 st.subheader("지표")
+st.caption("환율 · 금리")
 show_row([
     ("원/달러 환율", "KRW=X", lambda v: f"{v:,.2f}"),
     ("원/유로 환율", "EURKRW=X", lambda v: f"{v:,.2f}"),
-    ("WTI 유가", "CL=F", lambda v: f"{v:,.2f}"),
-    ("국제 금", "GC=F", lambda v: f"{v:,.1f}"),
-])
-show_row([
     ("미국 국채 10년 금리(%)", "^TNX", lambda v: f"{v:,.3f}"),
     ("미국 국채 30년 금리(%)", "^TYX", lambda v: f"{v:,.3f}"),
     ("달러 인덱스", "DX-Y.NYB", lambda v: f"{v:,.2f}"),
 ])
 
+st.write("")
+st.caption("에너지 · 금속")
+show_row([
+    ("WTI 유가", "CL=F", lambda v: f"{v:,.2f}"),
+    ("국제 금", "GC=F", lambda v: f"{v:,.1f}"),
+    ("국제 은", "SI=F", lambda v: f"{v:,.2f}"),
+    ("구리", "HG=F", lambda v: f"{v:,.3f}"),
+])
+
+st.write("")
+st.caption("농축산물")
+show_row([
+    ("옥수수", "ZC=F", lambda v: f"{v:,.2f}"),
+    ("대두(콩)", "ZS=F", lambda v: f"{v:,.2f}"),
+    ("밀", "ZW=F", lambda v: f"{v:,.2f}"),
+    ("생우(소)", "LE=F", lambda v: f"{v:,.2f}"),
+])
+
+st.divider()
 st.subheader("가상자산")
 st.caption("원화 환산 가격입니다 (국내 거래소 가격과는 프리미엄 차이로 약간 다를 수 있습니다).")
 
