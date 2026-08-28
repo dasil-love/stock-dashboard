@@ -54,11 +54,18 @@ ticker = raw_ticker.strip().upper()  # 소문자로 입력해도(aapl 등) 인�
 period = st.selectbox("차트 기간", ["5d", "1mo", "3mo", "6mo", "1y", "5y"], index=3)
 
 if ticker:
-    stock = yf.Ticker(ticker)
-    info = stock.info
-    full_df = get_price_history_with_ma(ticker)
+    try:
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        full_df = get_price_history_with_ma(ticker)
+        fetch_error = None
+    except Exception as e:
+        info, full_df, fetch_error = {}, None, e
 
-    if full_df is None or not info or (info.get("currentPrice") is None and info.get("regularMarketPrice") is None):
+    if fetch_error is not None:
+        st.error("야후 파이낸스에서 데이터를 가져오는 중 오류가 발생했습니다. 아래 오류 내용을 캡처해서 알려주시면 원인을 확인할 수 있습니다.")
+        st.exception(fetch_error)
+    elif full_df is None or not info or (info.get("currentPrice") is None and info.get("regularMarketPrice") is None):
         st.error(f"'{ticker}' 데이터를 찾을 수 없습니다. 티커를 확인해주세요. (야후 파이낸스 접속이 일시적으로 제한된 경우일 수도 있습니다. 잠시 후 다시 시도해주세요.)")
     else:
         st.subheader(f"{info.get('longName', ticker)} ({ticker})")
