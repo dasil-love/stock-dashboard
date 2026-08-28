@@ -674,6 +674,115 @@ def calculate_rsi(close_series, period=14):
     return rsi
 
 
+RETURN_COLUMNS = ["5일", "1개월", "6개월", "1년", "5년"]
+
+
+@st.cache_data(ttl=1800, show_spinner=False)
+def compute_return_rsi_table(tickers, name_map, include_per=True):
+    """종목 리스트를 받아 현재가/PER/RSI(14)/기간별 수익률을 한 번에 계산하는 함수.
+    테마종목, 보유주식, 연금저축 등 여러 페이지에서 공통으로 사용."""
+    unique_tickers = list(dict.fromkeys(tickers))
+    data = yf.download(unique_tickers, period="5y", interval="1d", group_by="ticker", threads=True, progress=False)
+
+    rows = []
+    for ticker in unique_tickers:
+        try:
+            close = data[ticker]["Close"].dropna()
+        except (KeyError, TypeError):
+            continue
+        if close.empty:
+            continue
+
+        info = {}
+        if include_per:
+            try:
+                info = yf.Ticker(ticker).info
+            except Exception:
+                info = {}
+
+        rsi_series = calculate_rsi(close)
+        rsi_value = rsi_series.iloc[-1] if not rsi_series.empty else None
+
+        row = {
+            "티커": ticker,
+            "종목명": name_map.get(ticker, ticker),
+            "현재가": close.iloc[-1],
+            "RSI(14)": rsi_value,
+        }
+        if include_per:
+            row["PER"] = info.get("trailingPE")
+        row.update(calculate_period_returns(close))
+        rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
+def render_return_heatmap(df, title):
+    """종목 x 기간(5일~5년) 수익률을 색깔로 한눈에 보여주는 히트맵"""
+    import matplotlib.pyplot as plt
+
+    st.subheader(f"{title} 기간별 수익률 히트맵")
+    values = df[RETURN_COLUMNS].astype(float)
+    # 색상은 -30%~+30% 구간에서 가장 진하게, 그 밖은 값은 그대로 표시하되 색은 포화시킴 (한두 종목의 극단치가 전체 색을 밀어버리는 것 방지)
+    clipped = values.clip(lower=-30, upper=30)
+
+    cmap = plt.get_cmap("RdYlGn")
+    norm = plt.Normalize(vmin=-30, vmax=30)
+
+    NEON = "#F5FF00"  # 5년 수익률 300% 이상인 셀의 "글자색"으로 쓸 형광색
+    five_year_idx = RETURN_COLUMNS.index("5년")
+
+    fig, ax = plt.subplots(figsize=(9, max(2.5, len(df) * 0.42)))
+    im = ax.imshow(clipped.values, cmap=cmap, norm=norm, aspect="auto")  # 바탕색은 원래 데이터 그대로
+
+    ax.set_xticks(range(len(RETURN_COLUMNS)))
+    ax.set_xticklabels(RETURN_COLUMNS)
+    ax.tick_params(top=True, labeltop=True)  # 종목 수가 많아 세로로 길어져도 위쪽에서 바로 기간을 확인할 수 있도록
+    ax.set_yticks(range(len(df)))
+    ax.set_yticklabels(df["종목명"])
+
+    for i in range(values.shape[0]):
+        for j in range(values.shape[1]):
+            val = values.values[i, j]
+            if pd.notna(val):
+                is_neon = j == five_year_idx and val >= 300
+                if is_neon:
+                    text_color = NEON
+                else:
+                    text_color = "white" if abs(val) >= 25 else "black"
+                ax.text(j, i, f"{val:+.1f}%", ha="center", va="center", fontsize=8, color=text_color,
+                         fontweight="bold" if is_neon else "normal")
+
+    fig.colorbar(im, ax=ax, label="수익률(%) (±30% 기준 색상 포화, 5년 300%+는 글자가 형광색)")
+    fig.tight_layout()
+    st.pyplot(fig)
+
+
+def render_rsi_scatter(df, title):
+    """RSI(과열도) vs 1개월 수익률 산점도. 오른쪽 위=많이 올랐고 과열, 오른쪽 아래=많이 올랐지만 아직 안 과열"""
+    import matplotlib.pyplot as plt
+
+    st.subheader(f"{title} RSI vs 1개월 수익률")
+    plot_df = df.dropna(subset=["RSI(14)", "1개월"])
+    if plot_df.empty:
+        st.info("표시할 데이터가 부족합니다.")
+        return
+
+    fig, ax = plt.subplots(figsize=(8, 5.5))
+    ax.scatter(plot_df["RSI(14)"], plot_df["1개월"], s=90, color="#4C78A8", edgecolors="white", zorder=3)
+    for _, row in plot_df.iterrows():
+        ax.annotate(row["종목명"], (row["RSI(14)"], row["1개월"]), fontsize=8, xytext=(5, 5), textcoords="offset points")
+
+    ax.axvline(70, color="red", linestyle="--", alpha=0.4, label="과열(70)")
+    ax.axvline(30, color="blue", linestyle="--", alpha=0.4, label="과매도(30)")
+    ax.axhline(0, color="gray", linestyle="-", alpha=0.3)
+    ax.set_xlabel("RSI(14) - 오른쪽일수록 과열")
+    ax.set_ylabel("1개월 수익률(%) - 위로 갈수록 최근 많이 상승")
+    ax.legend(loc="upper left", fontsize=8)
+    fig.tight_layout()
+    st.pyplot(fig)
+
+
 def get_naver_worldstock_url(ticker_symbol, exchange):
     """미국 종목의 네이버 해외증시 페이지 URL을 만드는 함수 (나스닥은 .O 접미사, 뉴욕은 접미사 없음)"""
     nasdaq_exchanges = {"NMS", "NGM", "NCM", "NASDAQ"}
