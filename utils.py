@@ -761,6 +761,7 @@ def render_return_heatmap(df, title):
 def render_rsi_scatter(df, title):
     """RSI(과열도) vs 1개월 수익률 산점도. 오른쪽 위=많이 올랐고 과열, 오른쪽 아래=많이 올랐지만 아직 안 과열"""
     import matplotlib.pyplot as plt
+    from adjustText import adjust_text
 
     st.subheader(f"{title} RSI vs 1개월 수익률")
     plot_df = df.dropna(subset=["RSI(14)", "1개월"])
@@ -768,17 +769,20 @@ def render_rsi_scatter(df, title):
         st.info("표시할 데이터가 부족합니다.")
         return
 
-    # 종목이 많을수록 세로로 늘려서, 값이 비슷한 종목들의 이름표가 서로 겹쳐 안 보이는 문제를 줄임
+    # 종목이 많을수록 세로로 늘려서, 값이 비슷한 종목들의 점이 서로 겹쳐 안 보이는 문제를 줄임
     fig, ax = plt.subplots(figsize=(8, max(5.5, len(plot_df) * 0.35)))
     ax.scatter(plot_df["RSI(14)"], plot_df["1개월"], s=90, color="#4C78A8", edgecolors="white", zorder=3)
 
-    # RSI 기준으로 정렬한 뒤 이름표를 위/아래로 번갈아 배치 - RSI 값이 비슷해 나란히 붙는 종목들의 이름표가
-    # 같은 줄에서 겹치지 않도록 함
-    label_df = plot_df.sort_values("RSI(14)").reset_index(drop=True)
-    for i, row in label_df.iterrows():
-        y_offset, va = (7, "bottom") if i % 2 == 0 else (-7, "top")
-        ax.annotate(row["종목명"], (row["RSI(14)"], row["1개월"]), fontsize=8, xytext=(5, y_offset),
-                    textcoords="offset points", va=va)
+    # 이름표를 일단 점 위치에 그린 뒤, adjust_text가 서로 겹치지 않도록 바깥으로 밀어내고
+    # 원래 점까지 가는 선(리더라인)을 그어줌 - 값이 비슷해 몰려있는 종목들도 이름을 읽을 수 있게 됨
+    texts = [
+        ax.text(row["RSI(14)"], row["1개월"], row["종목명"], fontsize=8)
+        for _, row in plot_df.iterrows()
+    ]
+    adjust_text(
+        texts, ax=ax, expand_axes=True, force_text=(0.4, 0.6), force_static=(0.3, 0.3),
+        arrowprops=dict(arrowstyle="-", color="gray", lw=0.6, alpha=0.8),
+    )
 
     ax.axvline(70, color="red", linestyle="--", alpha=0.4, label="과열(70)")
     ax.axvline(30, color="blue", linestyle="--", alpha=0.4, label="과매도(30)")
