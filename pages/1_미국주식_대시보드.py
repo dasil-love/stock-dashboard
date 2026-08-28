@@ -28,9 +28,9 @@ def get_price_history_with_ma(ticker):
     return df
 
 
-def get_key_stats(info, rsi_value):
+def get_key_stats(info, rsi_value, current_price):
     return {
-        "현재가": info.get("currentPrice") or info.get("regularMarketPrice"),
+        "현재가": current_price,
         "거래량": info.get("volume") or info.get("regularMarketVolume"),
         "평균거래량": info.get("averageVolume"),
         "PER (주가수익비율)": info.get("trailingPE"),
@@ -54,26 +54,37 @@ ticker = raw_ticker.strip().upper()  # 소문자로 입력해도(aapl 등) 인�
 period = st.selectbox("차트 기간", ["5d", "1mo", "3mo", "6mo", "1y", "5y"], index=3)
 
 if ticker:
+    stock = yf.Ticker(ticker)
+
+    full_df = None
+    fetch_error = None
     try:
-        stock = yf.Ticker(ticker)
-        info = stock.info
         full_df = get_price_history_with_ma(ticker)
-        fetch_error = None
     except Exception as e:
-        info, full_df, fetch_error = {}, None, e
+        fetch_error = e
+
+    # 회사명/PER/52주 최고-최저 같은 부가 정보(.info)는 야후에서 종종 막히므로,
+    # 실패해도 무시하고 진행 (테마종목 페이지와 동일한 방식 - 가격 이력만 있으면 화면은 정상 표시)
+    info = {}
+    if fetch_error is None:
+        try:
+            info = stock.info
+        except Exception:
+            info = {}
 
     if fetch_error is not None:
-        st.error("야후 파이낸스에서 데이터를 가져오는 중 오류가 발생했습니다. 아래 오류 내용을 캡처해서 알려주시면 원인을 확인할 수 있습니다.")
+        st.error("야후 파이낸스에서 가격 데이터를 가져오는 중 오류가 발생했습니다. 아래 오류 내용을 캡처해서 알려주시면 원인을 확인할 수 있습니다.")
         st.exception(fetch_error)
-    elif full_df is None or not info or (info.get("currentPrice") is None and info.get("regularMarketPrice") is None):
+    elif full_df is None:
         st.error(f"'{ticker}' 데이터를 찾을 수 없습니다. 티커를 확인해주세요. (야후 파이낸스 접속이 일시적으로 제한된 경우일 수도 있습니다. 잠시 후 다시 시도해주세요.)")
     else:
+        current_price = info.get("currentPrice") or info.get("regularMarketPrice") or full_df["Close"].iloc[-1]
         st.subheader(f"{info.get('longName', ticker)} ({ticker})")
 
         # --- 주요 지표 ---
         rsi_series = calculate_rsi(full_df["Close"])
         rsi_value = rsi_series.iloc[-1] if not rsi_series.empty else None
-        stats = get_key_stats(info, rsi_value)
+        stats = get_key_stats(info, rsi_value, current_price)
 
         cols = st.columns(4)
         money_labels = {"현재가", "52주 최고가", "52주 최저가"}

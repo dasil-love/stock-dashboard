@@ -33,10 +33,10 @@ def get_price_history_with_ma(stock_obj):
     return df
 
 
-def get_key_stats(info, rsi_value):
+def get_key_stats(info, rsi_value, current_price):
     """yfinance info 딕셔너리에서 주요 지표만 뽑아내는 함수"""
     return {
-        "현재가": get_display_price(info),
+        "현재가": current_price,
         "시가총액": info.get("marketCap") or info.get("totalAssets"),  # ETF는 marketCap 대신 totalAssets(순자산총액)
         "PER (주가수익비율)": info.get("trailingPE"),
         "52주 최고가": info.get("fiftyTwoWeekHigh"),
@@ -75,27 +75,48 @@ if user_input:
         st.error(f"'{user_input}'를 목록에서 찾을 수 없습니다. 종목코드(6자리 숫자) 또는 '005930.KS' 형태로 입력해주세요.")
     else:
         stock = yf.Ticker(ticker_symbol)
-        info = stock.info
+
+        full_df = None
+        fetch_error = None
+        try:
+            full_df = get_price_history_with_ma(stock)
+        except Exception as e:
+            fetch_error = e
 
         # 코스피(.KS)로 시도했는데 없으면 코스닥(.KQ)로 재시도
-        if (not info or get_display_price(info) is None) and ticker_symbol.endswith(".KS"):
+        if fetch_error is None and full_df is None and ticker_symbol.endswith(".KS"):
             alt_symbol = ticker_symbol.replace(".KS", ".KQ")
             alt_stock = yf.Ticker(alt_symbol)
-            alt_info = alt_stock.info
-            if alt_info and get_display_price(alt_info) is not None:
-                ticker_symbol, stock, info = alt_symbol, alt_stock, alt_info
+            try:
+                alt_df = get_price_history_with_ma(alt_stock)
+            except Exception:
+                alt_df = None
+            if alt_df is not None:
+                ticker_symbol, stock, full_df = alt_symbol, alt_stock, alt_df
 
-        if not info or get_display_price(info) is None:
-            st.error(f"'{ticker_symbol}' 정보를 찾을 수 없습니다.")
+        # 회사명/PER/시가총액 같은 부가 정보(.info)는 야후에서 종종 막히므로,
+        # 실패해도 무시하고 진행 (테마종목 페이지와 동일한 방식 - 가격 이력만 있으면 화면은 정상 표시)
+        info = {}
+        if fetch_error is None:
+            try:
+                info = stock.info
+            except Exception:
+                info = {}
+
+        if fetch_error is not None:
+            st.error("야후 파이낸스에서 가격 데이터를 가져오는 중 오류가 발생했습니다. 아래 오류 내용을 캡처해서 알려주시면 원인을 확인할 수 있습니다.")
+            st.exception(fetch_error)
+        elif full_df is None:
+            st.error(f"'{ticker_symbol}' 데이터를 찾을 수 없습니다. (야후 파이낸스 접속이 일시적으로 제한된 경우일 수도 있습니다. 잠시 후 다시 시도해주세요.)")
         else:
+            current_price = get_display_price(info) or full_df["Close"].iloc[-1]
             st.subheader(f"{info.get('longName', ticker_symbol)} ({ticker_symbol})")
 
-            full_df = get_price_history_with_ma(stock)
-            rsi_series = calculate_rsi(full_df["Close"]) if full_df is not None else pd.Series(dtype=float)
+            rsi_series = calculate_rsi(full_df["Close"])
             rsi_value = rsi_series.iloc[-1] if not rsi_series.empty else None
 
             # --- 주요 지표 ---
-            stats = get_key_stats(info, rsi_value)
+            stats = get_key_stats(info, rsi_value, current_price)
             cols = st.columns(4)
             items = list(stats.items())
             money_labels = {"현재가", "시가총액", "52주 최고가", "52주 최저가"}  # 원화 금액은 소수점 없이 표시
