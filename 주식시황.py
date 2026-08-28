@@ -61,15 +61,6 @@ show_row([
     ("구리", "HG=F", lambda v: f"{v:,.3f}"),
 ])
 
-st.write("")
-st.caption("농축산물")
-show_row([
-    ("옥수수", "ZC=F", lambda v: f"{v:,.2f}"),
-    ("대두(콩)", "ZS=F", lambda v: f"{v:,.2f}"),
-    ("밀", "ZW=F", lambda v: f"{v:,.2f}"),
-    ("생우(소)", "LE=F", lambda v: f"{v:,.2f}"),
-])
-
 st.divider()
 st.subheader("가상자산")
 st.caption("원화 환산 가격입니다 (국내 거래소 가격과는 프리미엄 차이로 약간 다를 수 있습니다).")
