@@ -9,6 +9,24 @@ import pandas as pd
 import os
 from deep_translator import GoogleTranslator
 
+def set_korean_font():
+    """matplotlib 차트에 한글이 깨지지 않게, 이 컴퓨터(윈도우/리눅스 등)에 실제로 설치된 한글 폰트를 찾아서 적용하는 함수.
+    윈도우(로컬)에서는 '맑은 고딕', 리눅스(Streamlit Cloud 등, packages.txt에 fonts-nanum 설치된 경우)에서는 '나눔고딕'을 자동으로 사용함."""
+    import matplotlib.pyplot as plt
+    import matplotlib.font_manager as fm
+
+    candidates = ["Malgun Gothic", "NanumGothic", "Noto Sans KR", "AppleGothic"]
+    available = {f.name for f in fm.fontManager.ttflist}
+    for name in candidates:
+        if name in available:
+            plt.rcParams["font.family"] = name
+            plt.rcParams["axes.unicode_minus"] = False
+            return name
+
+    plt.rcParams["axes.unicode_minus"] = False
+    return None
+
+
 # 회사명 -> 야후파이낸스 티커 매핑 (자주 조회되는 코스피/코스닥 종목 위주)
 # 목록에 없는 종목은 페이지에서 티커를 직접 입력하면 됩니다.
 KR_TICKERS = {

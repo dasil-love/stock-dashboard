@@ -16,11 +16,11 @@ from utils import (
     calculate_rsi,
     calculate_period_returns,
     style_negative_returns,
+    set_korean_font,
 )
 
 st.set_page_config(page_title="테마종목", layout="wide")
-plt.rcParams["font.family"] = "Malgun Gothic"  # 한글 깨짐 방지
-plt.rcParams["axes.unicode_minus"] = False
+set_korean_font()  # OS에 맞는 한글 폰트를 자동으로 찾아서 적용 (윈도우/리눅스 모두 대응)
 
 st.title("테마종목")
 st.caption("섹터를 고르면 관련 종목의 현재가/PER/RSI/기간별 변동률을 보여줍니다. 매수·매도 결정에 참고할 지표만 제공하며, 투자 조언은 아닙니다.")
