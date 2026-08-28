@@ -8,6 +8,7 @@ import streamlit as st
 import pandas as pd
 from utils import (
     KR_SECTOR_STOCKS,
+    KR_SECTOR_ETF_NAMES,
     US_SECTOR_STOCKS,
     resolve_kr_ticker,
     style_negative_returns,
@@ -17,6 +18,10 @@ from utils import (
     render_return_heatmap,
     render_rsi_scatter,
 )
+
+# 이 섹터들은 개별 종목 수가 많아, RSI 산점도에 ETF까지 같이 넣으면 개별 종목 이름표가 잘 안 보임 -
+# 히트맵에는 그대로 두고 산점도에서만 ETF를 뺌
+SCATTER_HIDE_ETF_SECTORS = {"반도체", "전력설비/원자력"}
 
 st.set_page_config(page_title="테마종목", layout="wide")
 set_korean_font()  # OS에 맞는 한글 폰트를 자동으로 찾아서 적용 (윈도우/리눅스 모두 대응)
@@ -78,4 +83,7 @@ if st.button(f"{sector} 종목 조회"):
         with col1:
             render_return_heatmap(table, sector)
         with col2:
-            render_rsi_scatter(table, sector)
+            scatter_table = table
+            if market == "한국" and sector in SCATTER_HIDE_ETF_SECTORS:
+                scatter_table = table[~table["종목명"].isin(KR_SECTOR_ETF_NAMES)]
+            render_rsi_scatter(scatter_table, sector)
