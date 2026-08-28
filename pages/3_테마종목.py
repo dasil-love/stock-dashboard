@@ -11,6 +11,7 @@ from utils import (
     KR_SECTOR_ETF_NAMES,
     US_SECTOR_STOCKS,
     resolve_kr_ticker,
+    is_korean_ticker,
     style_negative_returns,
     set_korean_font,
     RETURN_COLUMNS,
@@ -36,7 +37,10 @@ def render_sector_table(df):
         return
 
     display_df = df.copy()
-    display_df["현재가"] = display_df["현재가"].map(lambda v: f"{v:,.2f}")
+    # 한국 종목/ETF는 소수점 없는 원화 표기, 미국은 소수점 둘째 자리까지 표시
+    display_df["현재가"] = display_df.apply(
+        lambda r: f"{r['현재가']:,.0f}" if is_korean_ticker(str(r["티커"])) else f"{r['현재가']:,.2f}", axis=1
+    )
     if "PER" in display_df.columns:
         display_df["PER"] = display_df["PER"].map(lambda v: f"{v:.2f}" if pd.notna(v) else "N/A")
     display_df["RSI(14)"] = display_df["RSI(14)"].map(lambda v: f"{v:.1f}" if pd.notna(v) else "N/A")
