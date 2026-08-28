@@ -49,7 +49,8 @@ def get_news(ticker_obj, limit=8):
 
 st.title("미국 주식 대시보드")
 
-ticker = st.text_input("종목 티커를 입력하세요 (예: AAPL, TSLA, MSFT)", value="AAPL")
+raw_ticker = st.text_input("종목 티커를 입력하세요 (예: AAPL, TSLA, MSFT)", value="AAPL")
+ticker = raw_ticker.strip().upper()  # 소문자로 입력해도(aapl 등) 인식되도록 대문자로 통일
 period = st.selectbox("차트 기간", ["5d", "1mo", "3mo", "6mo", "1y", "5y"], index=3)
 
 if ticker:
@@ -58,9 +59,9 @@ if ticker:
     full_df = get_price_history_with_ma(ticker)
 
     if full_df is None or not info or (info.get("currentPrice") is None and info.get("regularMarketPrice") is None):
-        st.error(f"'{ticker}' 데이터를 찾을 수 없습니다. 티커를 확인해주세요.")
+        st.error(f"'{ticker}' 데이터를 찾을 수 없습니다. 티커를 확인해주세요. (야후 파이낸스 접속이 일시적으로 제한된 경우일 수도 있습니다. 잠시 후 다시 시도해주세요.)")
     else:
-        st.subheader(f"{info.get('longName', ticker)} ({ticker.upper()})")
+        st.subheader(f"{info.get('longName', ticker)} ({ticker})")
 
         # --- 주요 지표 ---
         rsi_series = calculate_rsi(full_df["Close"])
@@ -84,7 +85,7 @@ if ticker:
                     st.metric(label, f"{value:.2f}")
 
         # --- 차트 ---
-        st.subheader(f"{ticker.upper()} 종가 + 이동평균선")
+        st.subheader(f"{ticker} 종가 + 이동평균선")
         ma_col1, ma_col2, ma_col3 = st.columns(3)
         show_ma20 = ma_col1.checkbox("20일", value=True, key="us_ma20")
         show_ma60 = ma_col2.checkbox("60일", value=False, key="us_ma60")
@@ -108,8 +109,8 @@ if ticker:
         st.subheader("관련 뉴스")
 
         exchange = info.get("exchange", "")
-        naver_url = get_naver_worldstock_url(ticker.upper(), exchange)
-        stockplus_url = f"https://www.stockplus.com/m/stocks/USA-{ticker.upper()}"
+        naver_url = get_naver_worldstock_url(ticker, exchange)
+        stockplus_url = f"https://www.stockplus.com/m/stocks/USA-{ticker}"
 
         link_col1, link_col2, _ = st.columns([1, 1, 3])
         link_col1.link_button("네이버 금융에서 보기 ↗", naver_url)
