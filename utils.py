@@ -768,10 +768,17 @@ def render_rsi_scatter(df, title):
         st.info("표시할 데이터가 부족합니다.")
         return
 
-    fig, ax = plt.subplots(figsize=(8, 5.5))
+    # 종목이 많을수록 세로로 늘려서, 값이 비슷한 종목들의 이름표가 서로 겹쳐 안 보이는 문제를 줄임
+    fig, ax = plt.subplots(figsize=(8, max(5.5, len(plot_df) * 0.35)))
     ax.scatter(plot_df["RSI(14)"], plot_df["1개월"], s=90, color="#4C78A8", edgecolors="white", zorder=3)
-    for _, row in plot_df.iterrows():
-        ax.annotate(row["종목명"], (row["RSI(14)"], row["1개월"]), fontsize=8, xytext=(5, 5), textcoords="offset points")
+
+    # RSI 기준으로 정렬한 뒤 이름표를 위/아래로 번갈아 배치 - RSI 값이 비슷해 나란히 붙는 종목들의 이름표가
+    # 같은 줄에서 겹치지 않도록 함
+    label_df = plot_df.sort_values("RSI(14)").reset_index(drop=True)
+    for i, row in label_df.iterrows():
+        y_offset, va = (7, "bottom") if i % 2 == 0 else (-7, "top")
+        ax.annotate(row["종목명"], (row["RSI(14)"], row["1개월"]), fontsize=8, xytext=(5, y_offset),
+                    textcoords="offset points", va=va)
 
     ax.axvline(70, color="red", linestyle="--", alpha=0.4, label="과열(70)")
     ax.axvline(30, color="blue", linestyle="--", alpha=0.4, label="과매도(30)")
