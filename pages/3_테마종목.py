@@ -32,7 +32,8 @@ def render_sector_table(df):
 
     display_df = df.copy()
     display_df["현재가"] = display_df["현재가"].map(lambda v: f"{v:,.2f}")
-    display_df["PER"] = display_df["PER"].map(lambda v: f"{v:.2f}" if pd.notna(v) else "N/A")
+    if "PER" in display_df.columns:
+        display_df["PER"] = display_df["PER"].map(lambda v: f"{v:.2f}" if pd.notna(v) else "N/A")
     display_df["RSI(14)"] = display_df["RSI(14)"].map(lambda v: f"{v:.1f}" if pd.notna(v) else "N/A")
     for col in RETURN_COLUMNS:
         display_df[col] = display_df[col].map(lambda v: f"{v:+.2f}%" if pd.notna(v) else "-")
@@ -66,7 +67,8 @@ else:
 
 if st.button(f"{sector} 종목 조회"):
     with st.spinner(f"{sector} 섹터 {len(tickers)}개 종목 조회 중..."):
-        table = compute_return_rsi_table(tickers, name_map)
+        # 한국 종목/ETF는 야후 파이낸스가 PER을 거의 안 주므로, 한국 시장에서는 PER 열 자체를 생략
+        table = compute_return_rsi_table(tickers, name_map, include_per=(market == "미국"))
 
     render_sector_table(table)
 
