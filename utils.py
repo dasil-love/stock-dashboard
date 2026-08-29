@@ -3,6 +3,7 @@
 """
 
 import re
+import time
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -695,13 +696,21 @@ def has_korean(text):
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def translate_to_korean(text):
-    """영어 등 외국어 뉴스 제목을 한글로 번역하는 함수. 실패하면 None을 돌려줌 (원문만 표시)"""
+    """영어 등 외국어 뉴스 제목을 한글로 번역하는 함수. 실패하면 None을 돌려줌 (원문만 표시).
+    구글 번역(비공식)이 짧은 시간에 여러 건을 연달아 요청하면 막아버리고 번역 대신 에러 페이지
+    텍스트를 돌려주는 경우가 있어서, (1) 매 요청 전에 살짝 쉬어서 과다 요청 자체를 피하고,
+    (2) 결과에 한글이 실제로 포함돼 있는지 확인해서 에러 페이지가 섞여 나오는 걸 걸러냄."""
     if not text or has_korean(text):
         return None
-    try:
-        return GoogleTranslator(source="auto", target="ko").translate(text)
-    except Exception:
-        return None
+    for attempt in range(2):
+        time.sleep(0.8 if attempt == 0 else 2.0)
+        try:
+            result = GoogleTranslator(source="auto", target="ko").translate(text)
+            if result and has_korean(result):
+                return result
+        except Exception:
+            pass
+    return None
 
 
 def calculate_rsi(close_series, period=14):
