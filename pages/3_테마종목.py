@@ -18,6 +18,7 @@ from utils import (
     compute_return_rsi_table,
     render_return_heatmap,
     render_rsi_scatter,
+    naver_stock_url,
 )
 
 # 이 섹터들은 개별 종목 수가 많아, RSI 산점도에 ETF까지 같이 넣으면 개별 종목 이름표가 잘 안 보임 -
@@ -31,7 +32,7 @@ st.title("테마종목")
 st.caption("섹터를 고르면 관련 종목의 현재가/PER/RSI/기간별 변동률을 보여줍니다. 매수·매도 결정에 참고할 지표만 제공하며, 투자 조언은 아닙니다.")
 
 
-def render_sector_table(df):
+def render_sector_table(df, market):
     if df.empty:
         st.warning("데이터를 찾을 수 없습니다.")
         return
@@ -47,6 +48,13 @@ def render_sector_table(df):
     for col in RETURN_COLUMNS:
         display_df[col] = display_df[col].map(lambda v: f"{v:+.2f}%" if pd.notna(v) else "-")
 
+    is_kr_market = market == "한국"
+    display_df["티커"] = df.apply(
+        lambda r: naver_stock_url(r["티커"], is_kr_market, r.get("_거래소", "")), axis=1
+    )
+    if "_거래소" in display_df.columns:
+        display_df = display_df.drop(columns="_거래소")
+
     # style_negative_returns는 "수익률"/"오늘 변동률(%)" 열을 대상으로 하므로, 기간별 변동률 열도 같은 방식으로 직접 색칠
     def _color_negative(value):
         if isinstance(value, str) and value.startswith("-"):
@@ -54,7 +62,17 @@ def render_sector_table(df):
         return ""
 
     styled = display_df.style.map(_color_negative, subset=RETURN_COLUMNS)
-    st.dataframe(styled, width="stretch", hide_index=True)
+    st.dataframe(
+        styled,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "티커": st.column_config.LinkColumn(
+                "티커", display_text=r".*/stock/([A-Za-z0-9]+)(?:\.O)?/price"
+            )
+        },
+    )
+    st.caption("티커를 클릭하면 네이버금융 종목 상세 페이지가 새 창으로 열립니다.")
 
 
 market = st.radio("시장 선택", ["미국", "한국"], horizontal=True)
@@ -79,7 +97,7 @@ if st.button(f"{sector} 종목 조회"):
         # 한국 종목/ETF는 야후 파이낸스가 PER을 거의 안 주므로, 한국 시장에서는 PER 열 자체를 생략
         table = compute_return_rsi_table(tickers, name_map, include_per=(market == "미국"))
 
-    render_sector_table(table)
+    render_sector_table(table, market)
 
     if not table.empty:
         st.divider()

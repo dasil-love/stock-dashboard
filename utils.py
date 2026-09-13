@@ -762,10 +762,34 @@ def compute_return_rsi_table(tickers, name_map, include_per=True):
         }
         if include_per:
             row["PER"] = info.get("trailingPE")
+            row["_거래소"] = info.get("exchange", "")  # 네이버금융 딥링크에 나스닥(.O 접미사 필요)인지 판단할 때 사용
         row.update(calculate_period_returns(close))
         rows.append(row)
 
     return pd.DataFrame(rows)
+
+
+NAVER_NASDAQ_EXCHANGE_CODES = {"NMS", "NGM", "NCM"}  # 나스닥 Global Select/Global/Capital Market
+
+
+def naver_stock_url(ticker, is_korean, exchange=""):
+    """종목의 네이버금융(신버전 stock.naver.com) 상세 페이지 URL을 구하는 함수.
+    한국 종목은 6자리 코드로, 미국 종목은 나스닥이면 '.O' 접미사가 필요하고 그 외(NYSE 등)는 접미사가 없어야 함
+    (직접 접속 테스트로 확인한 규칙)."""
+    if is_korean:
+        code = str(ticker).split(".")[0]
+        return f"https://stock.naver.com/domestic/stock/{code}/price"
+    suffix = ".O" if exchange in NAVER_NASDAQ_EXCHANGE_CODES else ""
+    return f"https://stock.naver.com/worldstock/stock/{ticker}{suffix}/price"
+
+
+@st.cache_data(ttl=86400 * 7, show_spinner=False)
+def get_exchange_code(ticker):
+    """종목의 거래소 코드(NMS/NGM/NYQ 등)를 캐시해서 구하는 함수. 나스닥 여부만 필요할 때(PER을 안 가져오는 페이지 등) 사용."""
+    try:
+        return yf.Ticker(ticker).info.get("exchange", "")
+    except Exception:
+        return ""
 
 
 def render_return_heatmap(df, title):
