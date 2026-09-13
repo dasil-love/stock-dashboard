@@ -9,7 +9,54 @@ from utils import get_price_with_day_change, get_usdkrw_rate
 st.set_page_config(page_title="주식 시황", layout="wide")
 
 st.title("주식 시황")
-st.caption("주요 지수/지표/가상자산 현황입니다. 자동으로 최신 정보를 불러옵니다.")
+st.caption("주요 지수/지표/가상자산 현황입니다. 자동으로 최신 정보를 불러옵니다. 카드를 클릭하면 새 창에서 상세 시세/차트를 볼 수 있습니다.")
+
+# 지표별 상세 시세 사이트 링크. 네이버금융(신버전 stock.naver.com)이 지원하는 지표는 네이버로,
+# 네이버가 다루지 않는 해외지수/원자재/금리/가상자산은 investing.com·업비트로 연결합니다.
+INDICATOR_LINKS = {
+    "^GSPC": "https://www.investing.com/indices/us-spx-500",
+    "^IXIC": "https://www.investing.com/indices/nasdaq-composite",
+    "^DJI": "https://www.investing.com/indices/us-30",
+    "^SOX": "https://www.investing.com/indices/phlx-semiconductor",
+    "^NDX": "https://www.investing.com/indices/nq-100",
+    "^KS11": "https://stock.naver.com/domestic/index/KOSPI/price",
+    "^KQ11": "https://stock.naver.com/domestic/index/KOSDAQ/price",
+    "229200.KS": "https://stock.naver.com/domestic/index/KPI200/price",
+    "KRW=X": "https://stock.naver.com/marketindex/exchange/FX_USDKRW/price",
+    "JPYKRW=X": "https://stock.naver.com/marketindex/exchange/FX_JPYKRW/price",
+    "^TNX": "https://www.investing.com/rates-bonds/u.s.-10-year-bond-yield",
+    "^TYX": "https://www.investing.com/rates-bonds/u.s.-30-year-bond-yield",
+    "DX-Y.NYB": "https://www.investing.com/currencies/us-dollar-index",
+    "CL=F": "https://www.investing.com/commodities/crude-oil",
+    "GC=F": "https://stock.naver.com/marketindex/metals/M04020000/price",
+    "SI=F": "https://www.investing.com/commodities/silver",
+    "HG=F": "https://www.investing.com/commodities/copper",
+    "BTC-USD": "https://upbit.com/exchange?code=CRIX.UPBIT.KRW-BTC",
+    "ETH-USD": "https://upbit.com/exchange?code=CRIX.UPBIT.KRW-ETH",
+    "XRP-USD": "https://upbit.com/exchange?code=CRIX.UPBIT.KRW-XRP",
+    "SOL-USD": "https://upbit.com/exchange?code=CRIX.UPBIT.KRW-SOL",
+}
+
+
+def render_metric_card(col, label, value_text, delta_text, url):
+    """st.metric과 비슷하게 생겼지만, 클릭하면 새 창으로 해당 지표의 상세 시세 사이트가 열리는 카드"""
+    if delta_text and delta_text.startswith("+"):
+        delta_color = "#09ab3b"
+    elif delta_text and delta_text.startswith("-"):
+        delta_color = "#ff2b2b"
+    else:
+        delta_color = "#888"
+    delta_html = f'<div style="font-size:0.85rem;color:{delta_color};margin-top:2px;">{delta_text}</div>' if delta_text else ""
+    html = f'''
+    <a href="{url}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit;">
+      <div style="border:1px solid rgba(128,128,128,0.25);border-radius:8px;padding:10px 14px;margin-bottom:8px;">
+        <div style="font-size:0.8rem;color:#888;">{label}</div>
+        <div style="font-size:1.5rem;font-weight:600;">{value_text}</div>
+        {delta_html}
+      </div>
+    </a>
+    '''
+    col.markdown(html, unsafe_allow_html=True)
 
 
 def show_row(items):
@@ -21,7 +68,11 @@ def show_row(items):
             col.metric(label, "조회 실패")
             continue
         delta = f"{change:+.2f}%" if change is not None else None
-        col.metric(label, fmt(price), delta)
+        url = INDICATOR_LINKS.get(ticker)
+        if url:
+            render_metric_card(col, label, fmt(price), delta, url)
+        else:
+            col.metric(label, fmt(price), delta)
 
 
 st.subheader("미국")
@@ -46,7 +97,7 @@ st.subheader("지표")
 st.caption("환율 · 금리")
 show_row([
     ("원/달러 환율", "KRW=X", lambda v: f"{v:,.2f}"),
-    ("원/유로 환율", "EURKRW=X", lambda v: f"{v:,.2f}"),
+    ("원/100엔 환율", "JPYKRW=X", lambda v: f"{v * 100:,.2f}"),
     ("미국 국채 10년 금리(%)", "^TNX", lambda v: f"{v:,.3f}"),
     ("미국 국채 30년 금리(%)", "^TYX", lambda v: f"{v:,.3f}"),
     ("달러 인덱스", "DX-Y.NYB", lambda v: f"{v:,.2f}"),
@@ -78,7 +129,11 @@ def show_crypto_row(items):
         krw_price = price * rate if rate is not None else None
         value_text = f"{krw_price:,.0f} 원" if krw_price is not None else f"${price:,.2f}"
         delta = f"{change:+.2f}%" if change is not None else None
-        col.metric(label, value_text, delta)
+        url = INDICATOR_LINKS.get(ticker)
+        if url:
+            render_metric_card(col, label, value_text, delta, url)
+        else:
+            col.metric(label, value_text, delta)
 
 
 show_crypto_row([
