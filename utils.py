@@ -670,13 +670,13 @@ def scan_momentum(tickers, ascending=False, top_n=20, period="3mo"):
 
 
 def calculate_period_returns(close_series):
-    """5일/1개월/6개월/1년/5년 변동률(%)을 계산하는 함수. 데이터가 부족한 기간은 None."""
+    """1일(최근 거래일)/5일/1개월/6개월/1년/5년 변동률(%)을 계산하는 함수. 데이터가 부족한 기간은 None."""
     close_series = close_series.dropna()
     if close_series.empty:
-        return {"5일": None, "1개월": None, "6개월": None, "1년": None, "5년": None}
+        return {"1일": None, "5일": None, "1개월": None, "6개월": None, "1년": None, "5년": None}
 
     current = close_series.iloc[-1]
-    periods = {"5일": 5, "1개월": 21, "6개월": 126, "1년": 252, "5년": 1260}
+    periods = {"1일": 1, "5일": 5, "1개월": 21, "6개월": 126, "1년": 252, "5년": 1260}
     result = {}
     for label, days in periods.items():
         # 보유 데이터가 원하는 기간보다 짧으면(신규상장 등) 가장 오래된 데이터를 기준으로 계산
@@ -725,7 +725,7 @@ def calculate_rsi(close_series, period=14):
     return rsi
 
 
-RETURN_COLUMNS = ["5일", "1개월", "6개월", "1년", "5년"]
+RETURN_COLUMNS = ["1일", "5일", "1개월", "6개월", "1년", "5년"]
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
