@@ -598,6 +598,38 @@ def get_price_with_day_change(ticker):
     return price, day_change_pct
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def fetch_market_snapshot(tickers):
+    """주식시황 페이지용: 여러 지표의 1년치 시세를 한 번의 요청(yf.download)으로 받아
+    티커별 {현재가, 1일 변동률, 52주 고점 대비 위치(%), 기준일}을 만드는 함수. 5분 캐시.
+    (지표 20여 개를 하나씩 호출하면 6초 넘게 걸려서 일괄 조회로 바꿈)"""
+    from datetime import datetime
+
+    unique = list(dict.fromkeys(tickers))
+    data = yf.download(unique, period="1y", interval="1d", group_by="ticker", threads=True, progress=False)
+
+    result = {}
+    for ticker in unique:
+        try:
+            closes = data[ticker]["Close"].dropna()
+        except (KeyError, TypeError):
+            continue
+        if closes.empty:
+            continue
+        price = float(closes.iloc[-1])
+        change = None
+        if len(closes) >= 2 and closes.iloc[-2]:
+            change = (price - float(closes.iloc[-2])) / float(closes.iloc[-2]) * 100
+        high_52w = float(closes.max())
+        result[ticker] = {
+            "price": price,
+            "change": change,
+            "pct_from_high": (price - high_52w) / high_52w * 100 if high_52w else None,
+            "date": closes.index[-1].date(),
+        }
+    return result, datetime.now()
+
+
 def get_usdkrw_rate():
     """달러->원화 환율을 받아오는 함수"""
     hist = yf.Ticker("KRW=X").history(period="1d")
